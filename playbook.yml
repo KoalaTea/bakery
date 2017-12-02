@@ -1,0 +1,13 @@
+---
+- hosts: linux
+  ignore_errors: true
+  gather_facts: false
+  vars_files:
+      - vars/common.yml
+  roles:
+      - init
+
+- hosts: web
+  ignore_errors: true
+  roles:
+      - web
