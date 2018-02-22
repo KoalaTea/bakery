@@ -1,2 +1,11 @@
 ---
 # tasks file for ipa
+
+  - name: Install ipa, rng-tools, bind-utils
+    package:
+        name: "{{ item }}"
+        state: installed
+    with_items:
+        - rng-tools
+        - bind-utils
+        - ipa-server

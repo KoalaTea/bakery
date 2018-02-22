@@ -1,2 +1,7 @@
 ---
 # tasks file for web
+
+- name: install nginx
+  package:
+      name: nginx
+      state: installed

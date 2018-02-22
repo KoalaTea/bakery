@@ -1,2 +1,17 @@
 ---
 # tasks file for dns
+- name: install pi-hole
+  command: curl -sSL https://install.pi-hole.net | bash
+  tags: dns
+
+- name: copy over second conf file
+  copy:
+    src: 02-lan.conf
+    dest: /etc/dnsmasq.d/02-lan.conf
+  tags: dns
+
+- name: copy over secone dns file
+  copy:
+      src: lan.list
+      dest: /etc/pihole/lan.list
+  tags: dns

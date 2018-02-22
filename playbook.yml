@@ -5,7 +5,7 @@
   vars_files:
       - vars/common.yml
   roles:
-      - init
+      - santa
 
 - hosts: web
   ignore_errors: true
