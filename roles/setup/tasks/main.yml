@@ -1,2 +1,15 @@
 ---
 # tasks file for setup
+# todo use non root
+
+- name: ensure ssh directory
+  file:
+      path: /root/.ssh/
+      state: directory
+      mode: 0550
+
+- name: deploy my ssh key
+  authorized_key:
+      user: root
+      key: https://github.com/koalatea.keys
+      state: present

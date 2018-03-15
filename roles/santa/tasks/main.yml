@@ -1,9 +1,13 @@
 ---
 # tasks file for santa
-  - name: set hostname to santa
-    hostname:
-        name: santa
+- name: include setup
+  include_role:
+      name: setup
 
-  - name: include dns role
-    include_role:
-        name: dns
+- name: set hostname to santa
+  hostname:
+      name: santa
+
+- name: include dns role
+  include_role:
+      name: dns

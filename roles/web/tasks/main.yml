@@ -5,3 +5,45 @@
   package:
       name: nginx
       state: installed
+
+- name: start and enable radius
+  service:
+      name: nginx
+      state: started
+      enabled: yes
+
+- name: upload deploy key
+  copy:
+      src: chambordpi_deploy
+      dest: /root/.ssh/chambordpi_deploy
+      mode: 0600
+      owner: root
+      group: root
+
+# lets check command center to see what I do
+- name: remove www so we can clone to it
+  file:
+      state: absent
+      path: /var/www/
+
+- name: clone Chambord from git
+  git:
+      repo: ssh://git@github.com/koalatea/chambordpi.git
+      dest: /var/www/chambordpi
+      key_file: /root/.ssh/chambordpi_deploy
+      force: yes
+
+- name: change permissions on /var/www
+  file:
+      path: /var/www/
+      state: directory
+      mode: 0755
+
+- name: install pip
+  package:
+      name: python-pip
+      state: installed
+
+# install the requirements
+# set up wsgi correctly look at CommandCenter to see if we can do it better
+# otherwise use services
