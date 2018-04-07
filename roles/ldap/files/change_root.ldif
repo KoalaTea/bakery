@@ -1,0 +1,14 @@
+dn: olcDatabase={0}config,cn=config
+changetype: modify
+replace: olcRootPW
+olcRootPW: {CRYPT}$6$rounds=500000$ix5HfG0fQQc.$h3Ns.YacLwXPIMcWpICXVQc2qO0WMd7NjM8QYOXzWFnDDxmEoVDbth2ShmZXPhFELf7s7.k9UvxPn5G03D29N0
+
+dn: olcDatabase={1}hdb,cn=config
+changetype: modify
+replace: olcRootPW
+olcRootPW: {CRYPT}$6$rounds=500000$or.9hZvZ.is.$y77NrJLL9ufxn80vbXDr7oPOq4eyxrqMbAJ3SvVTvhAbyDWNgrJTo85SQ4i3Az1RUH231P4KoVAgA3S9GF06f/
+
+dn: olcDatabase={1}hdb,cn=config
+changetype: modify
+replace: olcAccess
+olcAccess: {0} to * by dn.base="gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth" write by * none 

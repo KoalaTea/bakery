@@ -1,0 +1,12 @@
+dn: olcDatabase={-1}frontend,cn=config
+add: olcPasswordHash
+olcPasswordHash: {CRYPT}
+
+dn: cn=config
+add: olcPasswordCryptSaltFormat
+olcPasswordCryptSaltFormat:  $6$rounds=50000$%.16s
+
+dn: cn=config
+add: olcPasswordCryptSaltFormat
+olcPasswordCryptSaltFormat:  $6$rounds=50000$%.16s
+

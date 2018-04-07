@@ -1,0 +1,16 @@
+dn: uid=auth,ou=users,dc=hackershelter,dc=us
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: auth
+sn: Whittier
+givenName: Ryan
+cn: Ryan Whittier
+displayName: Ryan Whittier
+uidNumber: 10000
+gidNumber: 5000
+userPassword: {CRYPT}$6$rounds=500000$ka83y.ffQnw.$48k4lq2vQMm7.YvSCVcP6X8ikRn1MfgPgv7qJ216.mLgCqr.p4yNUuLChbIN7VlxCHtDReukK5G/2F75KSybo.
+gecos: Ryan Whittier
+loginShell: /bin/bash
+homeDirectory: /home/rwhittier
+

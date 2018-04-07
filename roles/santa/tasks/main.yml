@@ -6,7 +6,9 @@
 
 - name: set hostname to santa
   hostname:
-      name: santa
+      name: santa.hackershelter.us
+
+# copy over new hosts
 
 - name: include dns role
   include_role:
