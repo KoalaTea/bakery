@@ -1,2 +1,25 @@
 ---
 # tasks file for kubernetes
+
+# TODO disable swap without reboot and permenantly
+- name: disable swap now
+  shell: swapoff -a
+
+- name: disable swap for reboot
+  shell: sed -i '/ swap / s/^/#/' /etc/fstab
+
+# install Container Runtime Interface (docker)
+- name: install CRI docker
+  package:
+      name: docker
+      state: installed
+
+# install kube utilitites
+- name: install kubernetes utilities kubeadmn kubelet kubectl
+  package:
+      name: "{{ item }}"
+      state: installed
+  with_items:
+      - kubeadm
+      - kubelet
+      - kubectl
