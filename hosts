@@ -5,8 +5,14 @@ web
 dns
 auth
 nac
+kube
 
 [web]
 [dns]
 [auth]
 [nac]
+[kube]
+192.168.1.200
+
+[linux:vars]
+ansible_user=root

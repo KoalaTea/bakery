@@ -6,20 +6,44 @@
   shell: swapoff -a
 
 - name: disable swap for reboot
-  shell: sed -i '/ swap / s/^/#/' /etc/fstab
+  lineinfile:
+    dest: /etc/fstab
+    regexp: '^[^#](.*swap.*)$'
+    line: '#\1'
+    backrefs: yes
 
 # install Container Runtime Interface (docker)
 - name: install CRI docker
   package:
-      name: docker
-      state: installed
+      name: docker-ce=18.06.1~ce~3-0~ubuntu
+      state: present
 
 # install kube utilitites
 - name: install kubernetes utilities kubeadmn kubelet kubectl
   package:
       name: "{{ item }}"
-      state: installed
+      state: present
   with_items:
       - kubeadm
       - kubelet
       - kubectl
+
+# https://github.com/kubernetes/kubeadm/issues/787
+# workarounds for now
+- name: link systemds resolv.conf into /etc/resolv.conf instead of 18.04s
+  file:
+    path: /etc/resolv.conf
+    src: /run/systemd/resolve/resolv.conf
+    state: link
+    force: yes
+
+# init kubeadm
+- name: init kubernetes
+  shell: kubeadm init --apiserver-advertise-address=192.168.1.200 --pod-network-cidr=10.100.0.0/16
+
+- name: set up Calico
+  shell: kubectl apply -f https://docs.projectcalico.org/v3.3/getting-started/kubernetes/installation/hosted/rbac-kdd.yaml
+
+- name: set up Calico 2
+  shell: kubectl apply -f https://docs.projectcalico.org/v3.3/getting-started/kubernetes/installation/hosted/kubernetes-datastore/calico-networking/1.7/calico.yaml
+
