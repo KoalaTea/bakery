@@ -1,5 +1,6 @@
 ---
 # tasks file for kubernetes
+# ubuntu 18.04.2 LTS (Bionic Beaver)
 
 # TODO disable swap without reboot and permenantly
 - name: disable swap now
@@ -12,11 +13,34 @@
     line: '#\1'
     backrefs: yes
 
+- name: add docker apt-key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Set the stable docker repository
+  apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} edge"
+    state: present
+    update_cache: yes
+
 # install Container Runtime Interface (docker)
 - name: install CRI docker
   package:
       name: docker-ce=18.06.1~ce~3-0~ubuntu
       state: present
+
+- name: add kube utilities apt-key
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+
+# bionic fails atm
+- name: add kube apt repo
+  apt_repository:
+    repo: "deb http://apt.kubernetes.io/ kubernetes-xenial main"
+    state: present
+    update_cache: yes
 
 # install kube utilitites
 - name: install kubernetes utilities kubeadmn kubelet kubectl
