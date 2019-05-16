@@ -5,13 +5,23 @@
 # TODO disable swap without reboot and permenantly
 - name: disable swap now
   shell: swapoff -a
+  when: ansible_swaptotal_mb > 0
+
+# - name: disable swap for reboot
+#   lineinfile:
+#     dest: /etc/fstab
+#     regexp: '^[^#](.*swap.*)$'
+#     line: '#\1'
+#     backrefs: yes
 
 - name: disable swap for reboot
-  lineinfile:
-    dest: /etc/fstab
-    regexp: '^[^#](.*swap.*)$'
-    line: '#\1'
-    backrefs: yes
+  mount:
+    name: "{{ item }}"
+    fstype: swap
+    state: absent
+  with_items:
+    - swap
+    - none
 
 - name: add docker apt-key
   apt_key:
@@ -63,11 +73,47 @@
 
 # init kubeadm
 - name: init kubernetes
-  shell: kubeadm init --apiserver-advertise-address=192.168.1.200 --pod-network-cidr=10.100.0.0/16
+  shell: kubeadm init --apiserver-advertise-address={{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }} --pod-network-cidr=10.100.0.0/16
 
+- name: kube dir for root
+  file:
+    path: /root/.kube
+    state: directory
+    mode: 0755
+
+- name: kube config file for root
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    mode: 0600
+    remote_src: yes
+
+# set up NCI calico
 - name: set up Calico
   shell: kubectl apply -f https://docs.projectcalico.org/v3.3/getting-started/kubernetes/installation/hosted/rbac-kdd.yaml
 
 - name: set up Calico 2
   shell: kubectl apply -f https://docs.projectcalico.org/v3.3/getting-started/kubernetes/installation/hosted/kubernetes-datastore/calico-networking/1.7/calico.yaml
 
+- name: kube dir for koalatea
+  file:
+    path: /home/koalatea/.kube
+    state: directory
+    mode: 0755
+
+- name: kube config file for koalatea
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /home/koalatea/.kube/config
+    mode: 0600
+    remote_src: yes
+
+- name: unset master node taint so pods can run here
+  shell: kubectl taint nodes --all node-role.kubernetes.io/master-
+
+# - name: generate join command
+#   command: kubeadm token create --print-join-command
+#   register: join_command
+
+# - name: Save join command to local file
+#   local_action: copy content="{{ join_command.stdout_lines[0] }}" dest='./join-command'
