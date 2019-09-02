@@ -109,3 +109,24 @@
 
 # - name: Save join command to local file
 #   local_action: copy content="{{ join_command.stdout_lines[0] }}" dest='./join-command'
+- name: copy over nfs files
+  copy:
+    src: nfs-dynamic-storage
+    dest: /home/koalatea/nfskube
+
+- name: set up nfs storage class
+  shell: kubectl apply -f /home/koalatea/nfskube/nfs-class.yaml
+
+- name: set up nfs rbac
+  shell: kubectl apply -f /home/koalatea/nfskube/nfs-rbac.yaml
+
+- name: set up nfs deployment
+  shell: kubectl apply -f /home/koalatea/nfskube/nfs-deployment.yaml
+
+- name: copy over registry deployment files
+  copy:
+    src: registry-compose.yaml
+    dest: /home/koalatea/registry-deployment.yaml
+
+- name: deploy registry deployment
+  shell: kubectl apply -f /home/koalatea/registry-deployment.yaml
