@@ -2,7 +2,6 @@
 # tasks file for kubernetes
 # ubuntu 18.04.2 LTS (Bionic Beaver)
 
-# TODO disable swap without reboot and permenantly
 - name: disable swap now
   shell: swapoff -a
   when: ansible_swaptotal_mb > 0
