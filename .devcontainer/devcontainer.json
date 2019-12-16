@@ -1,0 +1,10 @@
+{
+    "name": "Bakery dev",
+    "context": "..",
+    "dockerFile": "./dev.Dockerfile",
+    "settings": {},
+    "extensions": [
+        "ms-azuretools.vscode-docker",
+        "esbenp.prettier-vscode"
+      ]
+}
