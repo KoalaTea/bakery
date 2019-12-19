@@ -9,17 +9,9 @@
     }],
     "provisioners": [{
         "type": "ansible",
-        "user": "root",
+        "user": "vagrant",
         "playbook_file": "playbook.yml"
     }],
 
-    "post-processors": [{
-        "type": "vagrant",
-        "compression_level": 1,
-        "override": {
-          "vmware": {
-            "compression_level": 0
-          }
-        }
-      }]
+    "post-processors": []
 }

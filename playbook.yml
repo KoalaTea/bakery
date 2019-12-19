@@ -12,7 +12,9 @@
 #  roles:
 #      - web
 
-- hosts: kube
+- hosts: all
+  become: true
+  become_user: root
   ignore_errors: true
   roles:
     - wukong
