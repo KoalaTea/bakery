@@ -20,4 +20,8 @@ package:
     - virtualbox
 
 
-# wget https://releases.hashicorp.com/packer/1.4.5/packer_1.4.5_linux_amd64.zip
+- name: Unarchive packer from release
+  unarchive:
+    src: https://releases.hashicorp.com/packer/1.4.5/packer_1.4.5_linux_amd64.zip
+    dest: /usr/local/bin
+    remote_src: yes
