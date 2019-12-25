@@ -25,3 +25,16 @@ package:
     src: https://releases.hashicorp.com/packer/1.4.5/packer_1.4.5_linux_amd64.zip
     dest: /usr/local/bin
     remote_src: yes
+
+- name: Install arm builder dependencies
+  package:
+    name: "{{ item }}"
+    state: present
+    with_items:
+      - kpartx
+      - qemu-user-static
+
+- name: Install golang 1.13
+  unarchive:
+    src: wget https://dl.google.com/go/go1.13.3.linux-amd64.tar.gz
+    dest: /usr/local/

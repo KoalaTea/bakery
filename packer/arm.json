@@ -1,0 +1,12 @@
+{
+    "builders": [
+       {
+          "iso_checksum": "b9e22d7592c6936e4b0adadc9c9dbf7b4868cbfc26ff68a329e32f4af54fed70",
+          "iso_checksum_type": "sha256",
+          "iso_url": "file:///vagrant/2018-11-13-raspbian-stretch-lite.img",
+          "last_partition_extra_size": 1073741824,
+          "type": "arm-image"
+       }
+    ],
+    "provisioners": []
+}

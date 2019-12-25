@@ -1,0 +1,4 @@
+{
+    "os": ["ubuntu/bionic64"],
+    "style": "ansible"
+}
