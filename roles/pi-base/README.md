@@ -27,7 +27,7 @@ In the root
 ## Setup on device through ssh after imaging
 
 
-Packer
+Packer 1.7.6 with current version fidn it in the 
 # Setup linux device
 Needs
 - Linux
@@ -39,3 +39,20 @@ sudo apt update
 sudo apt install git wget zip unzip build-essential kpartx qemu binfmt-support qemu-user-static e2fsprogs dosfstools
 ```
 install packer
+```
+export PACKER_VERSION=1.7.6
+wget https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip -O /tmp/packer.zip && \
+  unzip /tmp/packer.zip -d /bin && \
+  rm /tmp/packer.zip
+```
+install packer-arm-image
+```
+https://github.com/solo-io/packer-plugin-arm-image/releases/download/v0.2.7/packer-plugin-arm-image_v0.2.7_x5.0_linux_amd64.zip > ~/packer.d/plugins/packer-plugin-arm-image
+```
+alternative
+```
+git clone https://github.com/solo-io/packer-plugin-arm-image
+go mod download
+go build
+mv packer-plugin-arm-image ~/.packer.d/plugins/
+```
