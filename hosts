@@ -5,8 +5,11 @@ web
 dns
 auth
 nac
+kube
 
 [web]
 [dns]
 [auth]
 [nac]
+[kube]
+10.0.23.85

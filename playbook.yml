@@ -1,13 +1,20 @@
 ---
-- hosts: linux
-  ignore_errors: true
-  gather_facts: false
-  vars_files:
-      - vars/common.yml
-  roles:
-      - santa
+#- hosts: linux
+#  ignore_errors: true
+#  gather_facts: false
+#  vars_files:
+#      - vars/common.yml
+#  roles:
+#      - santa
 
-- hosts: web
+#- hosts: web
+#  ignore_errors: true
+#  roles:
+#      - web
+
+- hosts: all
+  become: true
+  become_user: root
   ignore_errors: true
   roles:
-      - web
+    - wukong

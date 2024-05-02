@@ -1,6 +1,7 @@
 ---
 # tasks file for setup
-# todo use non root
+# TODO use non root
+# TODO install python if missing
 
 - name: ensure ssh directory
   file:

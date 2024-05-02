@@ -1,0 +1,13 @@
+---
+# tasks file for wukong
+#- name: include setup
+#  include_role:
+#    name: setup
+
+- name: set hostname to wukong
+  hostname:
+    name: wukong.hackershelter.us
+
+- name: include kube role
+  include_role:
+    name: kubernetes
