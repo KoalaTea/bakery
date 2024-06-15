@@ -149,6 +149,28 @@ https://docs.zymbit.com/getting-started/zymkey4/quickstart/
 apt download unifi
 dpkg --force-depends --install
 
+```
+sudo raspi-config
+interfrace options -> I2C -> ARM I2C enabled (yes) -> zymkey default address 0x30
+curl -G https://s3.amazonaws.com/zk-sw-repo/install_zk_sw.sh | sudo bash
+
+sudo su
+wake_pin=`grep GPIO4 /sys/kernel/debug/gpio | sed -r 's/[^0-9]*([0-9]*).*/\1/'`
+echo "wake_pin=$wake_pin"   # sanity check value is set
+echo "ZK_GPIO_WAKE_PIN=$wake_pin" > /var/lib/zymbit/zkenv.conf
+systemctl restart zkifc
+```
+```
+curl -L -o examples.zip https://community.zymbit.com/uploads/short-url/eUkHVwo7nawfhESQ3XwMvf28mBb.zip
+unzip examples.zip
+python3 zk_app_utils_test.py
+```
+c packages from the install script so I can try to cgo
+packages for messing with things might be arm only this stuff likely more annoying
+```
+apt install -y libzk libzymkeyssl zkbootrtc zkifc zkapputilslib zksaapps zkpkcs11 cryptsetup &>/dev/null || exit
+apt install -y cryptsetup-initramfs cryptsetup-run &>/dev/null
+```
 # packer stuff
 I think it might be interesting to have salt and osquery. (OSQuery does not support ARM and has no plans)
 

@@ -1,7 +1,7 @@
-192.168.1.53    santa.hackershelter.us santa
-192.168.1.72    cerberus.hackershelter.us cerberus
-192.168.1.49    peter.hackershelter.us peter
-192.168.1.83    cybersparbar.hackershelter.us cybersparbar bar
-192.168.1.100   jormungand.hackershelter.us jormungand
-192.168.1.200   wukong.hackershelter.us wukong
-192.168.1.253   transatlantic.hackershelter.us transatlantic
+192.168.1.53    santa.hackershelter.home santa
+192.168.1.72    cerberus.hackershelter.home cerberus
+192.168.1.49    peter.hackershelter.home peter
+192.168.1.83    cybersparbar.hackershelter.home cybersparbar bar
+192.168.1.100   jormungand.hackershelter.home jormungand
+192.168.1.200   wukong.hackershelter.home wukong
+192.168.1.253   transatlantic.hackershelter.home transatlantic

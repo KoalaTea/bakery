@@ -24,10 +24,57 @@ In the root
 ```
 - ssh
 
+chmod 0644 .pub files
+## Certs setup
+ssh-keygen -t rsa -b 4096 -f host_ca -C host_ca
+ssh-keygen -t rsa -b 4096 -f user_ca -C user_ca
+chmod 0600 host_ca
+chmod 0600 user_ca
+ssh-keygen -f ssh_host_rsa_key -N '' -b 4096 -t rsa
+ssh-keygen -s host_ca -I host.example.com -h -n host.example.com -V +52w ssh_host_rsa_key.pub
+ssh-keygen -f user-key -b 4096 -t rsa
+ssh-keygen -s user_ca -I honda@goteleport.com -n koalatea -V +1d user-key.pub
+
 ## Setup on device through ssh after imaging
+copy over host cert and host private key
+copy over user CA cert
+- /etc/ssh/sshd_config
+```
+HostCertificate /etc/ssh/ssh_host_rsa_key-cert.pub
+TrustedUserCAKeys /etc/ssh/user_ca.pub
+```
+`systemctl restart sshd`
 
 
-Packer 1.7.6 with current version fidn it in the 
+## Setup on ssh client
+CA between @cer-authority and host_ca
+- ~/.ssh/known_hosts
+```
+@cert-authority 192.168.1.101 <host_ca.pub>
+```
+
+```
+ssh-keygen -L -f user-key-cert.pub
+user-key-cert.pub:
+        Type: ssh-rsa-cert-v01@openssh.com user certificate
+        Public key: RSA-CERT SHA256:egWNu5cUZaqwm76zoyTtktac2jxKktj30Oi/ydrOqZ8
+        Signing CA: RSA SHA256:tltbnMalWg+skhm+VlGLd2xHiVPozyuOPl34WypdEO0 (using ssh-rsa)
+        Key ID: "honda@goteleport.com"
+        Serial: 0
+        Valid: from 2020-03-19T16:33:00 to 2020-03-20T16:34:54
+        Principals:
+                ec2-user
+                honda
+        Critical Options: (none)
+        Extensions:
+                permit-X11-forwarding
+                permit-agent-forwarding
+                permit-port-forwarding
+                permit-pty
+                permit-user-rc
+```
+
+Packer 1.7.6 with current version find it in the Docker file
 # Setup linux device
 Needs
 - Linux
@@ -55,4 +102,23 @@ git clone https://github.com/solo-io/packer-plugin-arm-image
 go mod download
 go build
 mv packer-plugin-arm-image ~/.packer.d/plugins/
+```
+
+Extra
+```
+    {
+      "type": "shell",
+      "inline": [
+        "echo 'Install APT Packages'",
+        "echo nameserver 8.8.8.8 > /etc/resolv.conf",
+        "apt-get update",
+        "apt-get -y install --no-install-recommends xserver-xorg-video-all xserver-xorg-input-all xserver-xorg-core xinit x11-xserver-utils fbi curl",
+        "rm -f /etc/motd",
+        "chown pi:pi -R /home/pi/"
+      ]
+    },
+    {
+      "type": "shell",
+      "script": "./scripts/run.sh"
+    }
 ```
