@@ -8,6 +8,8 @@
 - Peter
     - St Peter holder of the list to heaven
     - Authentication
+- kumo
+    - vm runner/lxc - proxmox
 - Wukong
     - job scheduler preferable container manager
     - kubernetes/nomad
