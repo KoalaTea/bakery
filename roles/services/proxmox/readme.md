@@ -1,0 +1,1 @@
+use build_kube_template.yml to make the kube template then the rest of the ansible scripts can use that. Likely to repeat this pattern for a number of templates or move to using packer and then just uploading that template to my containers. Should look into ansibles ability to manage moving connecting the nas to the cluster

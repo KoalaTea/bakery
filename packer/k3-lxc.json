@@ -1,0 +1,14 @@
+{
+    "builders": [
+        {
+            "type": "lxc",
+            "name": "lxc-trusty",
+            "config_file": "packer/lxcconfig/default.conf",
+            "template_name": "ubuntu",
+            "template_environment_vars": [
+                "SUITE=trusty"
+            ]
+        }
+    ],
+    "provisioners": []
+}

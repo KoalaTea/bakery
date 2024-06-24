@@ -1,0 +1,15 @@
+---
+# pveam available
+# pveam download local ubuntu-24.04-standard_24.04-2_amd64.tar.zst
+- name: Download the required template
+  hosts: proxmox
+  gather_facts: no
+  tasks:
+  - name: remove builder template
+    community.general.proxmox:
+      api_user: "{{ api_username }}"
+      api_password: "{{ ansible_ssh_pass }}"
+      api_host: "{{ ansible_host }}"
+      vmid: 9999
+      state: absent
+    delegate_to: localhost

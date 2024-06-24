@@ -1,0 +1,44 @@
+---
+- name: Download the required template
+  hosts: proxmox
+  gather_facts: no
+  tasks:
+  - name: Download the required template
+    community.general.proxmox_template:
+      state: present
+      api_user: "{{ ansible_user }}"
+      api_password: "{{ ansible_ssh_pass }}"
+      api_host: "{{ ansible_host }}"
+      api_host: "192.168.1.175"
+      node: "kumo"
+      storage: "local"
+      content_type: vztmpl
+      url: "http://download.proxmox.com/images/system/ubuntu-24.04-standard_24.04-2_amd64.tar.zst"
+      timeout: 30
+    delegate_to: localhost
+
+
+# - name: Create LXC container on Proxmox
+#   hosts: proxmox
+#   gather_facts: no
+#   tasks:
+#     - name: Create LXC container
+#       proxmox_kvm:
+#         api_user: "{{ ansible_user }}"
+#         api_password: "{{ ansible_ssh_pass }}"
+#         api_host: "{{ ansible_host }}"
+#         api_port: 8006
+#         node: "your_proxmox_node"
+#         storage: "local-lvm"
+#         hostname: "your_lxc_hostname"
+#         vmid: 100
+#         ostemplate: "http://download.proxmox.com/images/system/ubuntu-24.04-standard_24.04-2_amd64.tar.zst"
+#         password: "your_lxc_password"
+#         memory: 2048
+#         cores: 2
+#         swap: 512
+#         netif:
+#           - name: eth0
+#             bridge: vmbr0
+#             ip: dhcp
+#       delegate_to: localhost

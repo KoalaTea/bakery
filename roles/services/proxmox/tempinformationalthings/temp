@@ -1,0 +1,242 @@
+This is the `lxc-provision.yml` playbook:
+
+```
+--
+# Provision nodes in the Proxmox VE cluster
+
+- name: Provision LXC in the Proxmox cluster, enable and set up firewall and add DNS records
+  hosts: postgresql, nginx, beanstalk, redis, minio, pmg, metabase, popeye, blackpearl, redmine
+  gather_facts: false
+
+  vars_files:
+    - vault.yml
+
+  vars:
+    slack_color: "warning"
+    slack_msg: "The LXC `{{ inventory_hostname_short }}` has been provisioned."
+
+  pre_tasks:
+    - name: Download templates
+      ansible.builtin.import_tasks: tasks/provision/templates.yml
+
+  tasks:
+    - name: Provision the container
+      ansible.builtin.import_tasks: tasks/provision/provision.yml
+    - name: Configure the firewall
+      ansible.builtin.import_tasks: tasks/provision/firewall.yml
+    - name: Configure the Domain Name System
+      ansible.builtin.import_tasks: tasks/provision/dns.yml
+    - name: Start the container
+      ansible.builtin.import_tasks: tasks/provision/start.yml
+    - name: Configure OpenSSH
+      ansible.builtin.import_tasks: tasks/provision/sshd.yml
+
+  post_tasks:
+    - name: Test the result
+      ansible.builtin.import_tasks: tasks/provision/ping.yml
+
+  handlers:
+    - name: Import OpenSSH handlers
+      ansible.builtin.import_tasks: handlers/sshd.yml
+    - name: Import PowerDNS handlers
+      ansible.builtin.import_tasks: handlers/powerdns.yml
+    - name: Import systemd handlers
+      ansible.builtin.import_tasks: handlers/systemd.yml
+```
+
+And here you are the most relevant tasks:
+
+`$ cat tasks/provision/templates.yml`
+```
+---
+# Download the required templates
+# Requires: python3-requests, python3-proxmoxer
+# Requires: ansible-galaxy collection install community.general
+
+- name: Download the required template
+  community.general.proxmox_template:
+    state: present
+    api_user: "{{ vault_proxmox_api_user }}"
+    api_token_id: "{{ vault_proxmox_api_token_id }}"
+    api_token_secret: "{{ vault_proxmox_api_token_secret }}"
+    api_host: "{{ proxmox_api_host }}"
+    node: "{{ proxmox_node }}"
+    storage: "{{ proxmox_tmplstorage }}"
+    content_type: vztmpl
+    template: "{{ proxmox_ostemplate }}"
+    timeout: 30
+  delegate_to: localhost
+```
+
+`$ cat tasks/provision/provision.yml`
+```
+---
+# Provision a new LXC
+# Requires: python3-requests, python3-proxmoxer
+# Requires: ansible-galaxy collection install community.general
+
+- name: Provision the container
+  community.general.proxmox:
+    state: present
+    api_user: "{{ vault_proxmox_api_user }}"
+    api_token_id: "{{ vault_proxmox_api_token_id }}"
+    api_token_secret: "{{ vault_proxmox_api_token_secret }}"
+    api_host: "{{ proxmox_api_host }}"
+    vmid: "{{ proxmox_ctid }}"
+    node: "{{ proxmox_node }}"
+    hostname: "{{ inventory_hostname_short }}"
+    unprivileged: true
+    features:
+      - nesting=1
+    pool: "{{ proxmox_pool }}"
+    password: "{{ vault_proxmox_lxc_root_password }}"
+    pubkey: "{{ lookup('ansible.builtin.file', '{{ proxmox_lxc_pubkey }}') }}"
+    storage: "{{ proxmox_tmplstorage }}"
+    ostemplate: "{{ proxmox_tmplstorage }}:vztmpl/{{ proxmox_ostemplate }}"
+    disk: "{{ proxmox_hdstorage }}:{{ proxmox_disksize }},mountoptions={{ proxmox_mountoptions }}"
+    netif:
+      net0: "{{ lookup('ansible.builtin.template', 'templates/provision/netif0.j2') }}"
+      net1: "{{ lookup('ansible.builtin.template', 'templates/provision/netif1.j2') if proxmox_public_ipv4_cidr is defined else omit }}"
+    cores: "{{ proxmox_cores }}"
+    memory: "{{ proxmox_memory }}"
+    swap: "{{ proxmox_swap }}"
+    searchdomain: "{{ proxmox_dnszone }}"
+    nameserver: "{{ proxmox_dnsservers }}"
+    onboot: true
+    timeout: 30 # Wait for 30 seconds for the REST API to answer
+  # https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_checkmode.html
+  # Wait asynchronously for the task to finish. Disable async when running in check mode.
+  # Poll for changes every 2 seconds
+  async: "{{ ansible_check_mode | ternary(0, 30) }}"
+  poll: 2
+  delegate_to: localhost
+  notify: "delete known_hosts"
+
+- name: Add tags to the container
+  # noqa no-changed-when
+  ansible.builtin.command:
+    cmd: |
+      pvesh set /nodes/{{ proxmox_node }}/lxc/{{ proxmox_ctid }}/config
+        --tags '{{ proxmox_tag }}' --quiet
+  delegate_to: "{{ proxmox_node }}.{{ proxmox_dnszone }}"
+```
+
+`$ cat tasks/provision/firewall.yml`
+```
+---
+# Enable and configure the firewall of a LXC
+
+- name: Check the status of the container firewall
+  ansible.builtin.command:
+    cmd: "pvesh get /nodes/{{ proxmox_node }}/lxc/{{ proxmox_ctid }}/firewall/options --output-format json"
+  changed_when: false # always execute, prevent ansible-lint error
+  register: fw
+  delegate_to: "{{ proxmox_node }}.{{ proxmox_dnszone }}"
+
+- name: Enable the container firewall
+  ansible.builtin.command:
+    cmd: "pvesh set /nodes/{{ proxmox_node }}/lxc/{{ proxmox_ctid }}/firewall/options --enable '1'"
+  when: (fw.stdout | from_json).enable is not defined
+  delegate_to: "{{ proxmox_node }}.{{ proxmox_dnszone }}"
+
+- name: Deploy container firewall configuration
+  ansible.builtin.template:
+    src: "templates/provision/{{ proxmox_fw_tmpl }}.j2"
+    dest: "/etc/pve/firewall/{{ proxmox_ctid }}.fw"
+    owner: root
+    group: www-data
+    mode: "0640"
+  delegate_to: "{{ proxmox_node }}.{{ proxmox_dnszone }}"
+
+- name: Check for the container firewall alias
+  ansible.builtin.command:
+    cmd: "pvesh get /cluster/firewall/aliases/ipv4_private_{{ inventory_hostname_short }}"
+  register: alias
+  # Command exit code is 0 if it already exists and 255 if it does not
+  # Other exit codes would be actual errors
+  failed_when: alias.rc != 0 and alias.rc != 255
+  changed_when: false # always execute, prevent ansible-lint error
+  delegate_to: "{{ proxmox_node }}.{{ proxmox_dnszone }}"
+
+- name: Create the container firewall alias
+  ansible.builtin.command:
+    cmd: |
+      pvesh create /cluster/firewall/aliases
+        --cidr {{ ansible_host }}
+        --name ipv4_private_{{ inventory_hostname_short }}
+        --comment '{{ proxmox_fw_alias_comment }}'
+  # "No such alias" comes with an exit code 255, so we need to create it
+  when: alias.rc == 255
+  delegate_to: "{{ proxmox_node }}.{{ proxmox_dnszone }}"
+
+- name: Check for the firewall IPSet of this group
+  ansible.builtin.command:
+    cmd: "pvesh get /cluster/firewall/ipset/{{ proxmox_fw_ipset_name }}"
+  register: ipset
+  when: proxmox_fw_ipset_name is defined
+  # Command exit code is 0 if it already exists and 255 if it does not
+  # Other exit codes would be actual errors
+  failed_when: ipset.rc != 0 and ipset.rc != 255
+  delegate_to: "{{ proxmox_node }}.{{ proxmox_dnszone }}"
+
+- name: Create the firewall IPSet
+  ansible.builtin.command:
+    cmd: |
+      pvesh create /cluster/firewall/ipset
+        --name {{ proxmox_fw_ipset_name }}
+        --comment '{{ proxmox_fw_ipset_comment }}'
+  # "No such IPSet" comes with an exit code 255, so we need to create it
+  when: proxmox_fw_ipset_name is defined and ipset.rc == 255
+  delegate_to: "{{ proxmox_node }}.{{ proxmox_dnszone }}"
+
+- name: Check for the container firewall alias in the IPSet of this group
+  ansible.builtin.command:
+    cmd: "pvesh get /cluster/firewall/ipset/{{ proxmox_fw_ipset_name }}/ipv4_private_{{ inventory_hostname_short }}"
+  register: ipsetalias
+  when: proxmox_fw_ipset_name is defined
+  # Command exit code is 0 if it is already in and 255 if it is not
+  # Other exit codes would be actual errors
+  failed_when: ipset.rc != 0 and ipset.rc != 255
+  delegate_to: "{{ proxmox_node }}.{{ proxmox_dnszone }}"
+
+- name: Add the firewall container alias to the firewall IPSet
+  ansible.builtin.command:
+    cmd: |
+      pvesh create /cluster/firewall/ipset/{{ proxmox_fw_ipset_name }}
+        --cidr ipv4_private_{{ inventory_hostname_short }}
+  when: proxmox_fw_ipset_name is defined and ipsetalias.rc == 255
+  register: ipsetalias
+  delegate_to: "{{ proxmox_node }}.{{ proxmox_dnszone }}"
+
+$ cat tasks/provision/start.yml
+---
+# Start the container
+
+- name: Start the container
+  community.general.proxmox:
+    state: started
+    vmid: "{{ proxmox_ctid }}"
+    api_user: "{{ vault_proxmox_api_user }}"
+    api_token_id: "{{ vault_proxmox_api_token_id }}"
+    api_token_secret: "{{ vault_proxmox_api_token_secret }}"
+    api_host: "{{ proxmox_api_host }}"
+    timeout: 10 # Wait for 10 seconds for the container to start
+  # https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_checkmode.html
+  # Wait asynchronously for the task to finish. Disable async when running in check mode.
+  # Poll for changes every 2 seconds
+  async: "{{ ansible_check_mode | ternary(0, 10) }}"
+  poll: 2
+  delegate_to: localhost
+  notify:
+    - "sshd start"
+
+- name: Allow a few seconds for the services to start
+  ansible.builtin.wait_for:
+    timeout: 3
+  delegate_to: localhost
+
+# LXC template now ships sshd as socketed service.
+# Make sure it is started before Ansible attempts to connect to it.
+- name: Force start of the SSH daemon
+  ansible.builtin.meta: flush_handlers
+```

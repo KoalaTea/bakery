@@ -176,3 +176,6 @@ I think it might be interesting to have salt and osquery. (OSQuery does not supp
 
 # network stuff
 istio envoy - istio provides the control plane passing information to the envoy proxies and giving them configuration
+
+# maybe useful
+ansible-vault create vault.yml

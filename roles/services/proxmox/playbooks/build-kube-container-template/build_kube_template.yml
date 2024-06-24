@@ -1,0 +1,116 @@
+---
+# pveam available
+# pveam download local ubuntu-24.04-standard_24.04-2_amd64.tar.zst
+- name: Download the required template
+  hosts: proxmox
+  gather_facts: no
+  tasks:
+  - name: Download the required template
+    community.general.proxmox_template:
+      state: present
+      api_user: "{{ api_username }}"
+      api_password: "{{ ansible_ssh_pass }}"
+      api_host: "{{ ansible_host }}"
+      node: "kumo"
+      storage: "local"
+      content_type: vztmpl
+      template: ubuntu-24.04-standard_24.04-2_amd64.tar.zst
+      timeout: 30
+    delegate_to: localhost
+    register: template_info
+
+  - name: Check template_info content
+    debug:
+      var: template_info
+
+  - name: Provision the container for building other containers
+    community.general.proxmox:
+      state: present
+      vmid: 9999
+      api_user: "{{ api_username }}"
+      api_password: "{{ ansible_ssh_pass }}"
+      api_host: "{{ ansible_host }}"
+      node: "kumo"
+      hostname: builder
+      unprivileged: true
+      password: "password123" # Should autogen and store this if I can
+      ostemplate:  "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst" # should be a 
+      disk: "local-lvm:8" # I should convert nvme_storage to support this
+      netif: '{"net0": "bridge=vmbr0,name=eth0,firewall=yes,ip=dhcp,ip6=dhcp"}'
+      cores: 1
+      memory: 512
+      swap: 512
+      onboot: false
+      timeout: 30 # Wait for 30 seconds for the REST API to answer
+    # https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_checkmode.html
+    # Wait asynchronously for the task to finish. Disable async when running in check mode.
+    # Poll for changes every 2 seconds
+    # because of spaces in my directory these seem to break everything.
+    # async: "{{ ansible_check_mode | ternary(0, 30) }}"
+    # poll: 2
+    delegate_to: localhost
+    environment:
+      PATH: "{{ lookup('env', 'PATH') }}"  # Ensure PATH is passed correctly
+
+  - name: Start the builder container
+    community.general.proxmox:
+      state: started
+      vmid: 9999
+      api_user: "{{ api_username }}"
+      api_password: "{{ ansible_ssh_pass }}"
+      api_host: "{{ ansible_host }}"
+      node: "kumo"
+    delegate_to: localhost
+  
+  - name: Copy files to Proxmox host
+    ansible.builtin.copy:
+      src: "{{ playbook_dir }}/files/kubernetes/rc.local"
+      dest: /tmp/rc.local  # Destination directory on the Proxmox host
+
+  - name: Copy files into LXC container
+    ansible.builtin.shell: |
+      pct push 9999 /tmp/rc.local /etc/rc.local
+
+  - name: Execute commands inside LXC container
+    ansible.builtin.shell: |
+      lxc-attach -n 9999 -- /bin/bash -c '
+        apt update && apt upgrade -y && apt install -y vim curl
+        chmod +x /etc/rc.local
+        sudo apt-get install haproxy keepalived -y
+        cat /etc/rancher/k3s/config.yaml
+        curl -sfL https://get.k3s.io | sh -
+      '
+
+
+# curl -sfL https://get.k3s.io | K3S_TOKEN={{ k3s_token }} sh -s - server --server https://10.254.1.1:6443 --tls-san=10.254.1.1
+
+
+#     Installing a server without traefik:
+#     curl ... | INSTALL_K3S_EXEC="--disable=traefik" sh -
+
+# bash install-helm.sh
+# helm uninstall traefik traefik-crd -n kube-system
+# rm /var/lib/rancher/k3s/server/manifests/traefik.yaml
+# sudo systemctl restart k3s
+# export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+# sudo systemctl restart k3s
+# After haproxy is installed
+# echo "vim /etc/haproxy/haproxy.cfg" | tee -a /etc/rc.local
+
+  - name: Stop the builder container
+    community.general.proxmox:
+      api_user: "{{ api_username }}"
+      api_password: "{{ ansible_ssh_pass }}"
+      api_host: "{{ ansible_host }}"
+      vmid: 9999
+      state: stopped
+    delegate_to: localhost
+
+  - name: Convert container to template #TODO
+    community.general.proxmox:
+      api_user: "{{ api_username }}"
+      api_password: "{{ ansible_ssh_pass }}"
+      api_host: "{{ ansible_host }}"
+      vmid: 9999
+      state: template
+    delegate_to: localhost

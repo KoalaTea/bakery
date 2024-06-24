@@ -8,3 +8,6 @@ output-vagrant
 output-arm-image
 password
 nopush
+inventory.ini
+venv
+output-*
