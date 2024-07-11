@@ -1,0 +1,37 @@
+---
+- name: Provision nixos container
+  hosts: proxmox
+  gather_facts: no
+  tasks:
+  - name: Provision the nixos container
+    community.general.proxmox:
+      state: present
+      vmid: 1000
+      api_user: "{{ api_username }}"
+      api_password: "{{ ansible_ssh_pass }}"
+      api_host: "{{ ansible_host }}"
+      node: "kumo"
+      hostname: builder
+      unprivileged: true
+      password: "password123" # Should autogen and store this if I can
+      ostemplate:  "local:vztmpl/nixos-system-x86_64-linux.tar.xz" # should be a 
+      disk: "local-lvm:8" # I should convert nvme_storage to support this
+      netif: '{"net0": "bridge=vmbr0,name=eth0,firewall=yes,ip=dhcp,ip6=dhcp"}'
+      cores: 2
+      memory: 2048
+      swap: 512
+      onboot: false
+      timeout: 30 # Wait for 30 seconds for the REST API to answer
+    delegate_to: localhost
+    environment:
+      PATH: "{{ lookup('env', 'PATH') }}"  # Ensure PATH is passed correctly
+
+  - name: Start the builder container
+    community.general.proxmox:
+      state: started
+      vmid: 1000
+      api_user: "{{ api_username }}"
+      api_password: "{{ ansible_ssh_pass }}"
+      api_host: "{{ ansible_host }}"
+      node: "kumo"
+    delegate_to: localhost

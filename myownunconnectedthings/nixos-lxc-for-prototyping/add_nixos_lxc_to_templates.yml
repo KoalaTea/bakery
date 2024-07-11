@@ -1,0 +1,38 @@
+---
+- name: Generate Proxmox LXC tarball using Nix
+  hosts: proxmox
+  become: true
+  tasks:
+    - name: Ensure Nix is installed
+      package:
+        name: nix
+        state: present
+        use: apt
+      delegate_to: localhost
+
+    # need to add user to nixbld as well and update here if nix is installed above
+
+    - name: Add nixpkgs
+      command: >
+        nix-channel --add https://nixos.org/channels/nixpkgs-unstable
+      delegate_to: localhost
+
+    - name: Update nixchannel
+      command: >
+        nix-channel --update
+      delegate_to: localhost
+
+    - name: Run nixos-generators to create Proxmox LXC tarball
+      command: >
+        nix run --extra-experimental-features "nix-command flakes" github:nix-community/nixos-generators -- --format proxmox-lxc -o nixos-lxc-tarball
+      register: nix_run_output
+      delegate_to: localhost
+
+    - name: Copy the lxc template to Proxmox host
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/nixos-lxc-tarball/tarball/nixos-system-x86_64-linux.tar.xz"
+        dest: /var/lib/vz/template/cache/nixos-system-x86_64-linux.tar.xz  # Destination directory on the Proxmox host
+
+    # dont know how to get the actual tarball that is generated from above yet - seems to be in stdout
+    # Also is does not work
+    # maybe this is something that just has to be done by hand

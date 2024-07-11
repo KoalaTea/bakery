@@ -1,0 +1,2 @@
+[proxmox]
+proxmox_host ansible_host=192.168.1.46 ansible_user=root ansible_ssh_pass="somepassword" ansible_become=true ansible_become_method=sudo api_username=root@pam k3s_token=temptoken

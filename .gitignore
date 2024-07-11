@@ -11,3 +11,5 @@ nopush
 inventory.ini
 venv
 output-*
+nixos-lxc-tarball
+*.ini
