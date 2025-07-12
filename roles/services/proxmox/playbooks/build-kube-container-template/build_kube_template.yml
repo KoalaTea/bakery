@@ -32,7 +32,7 @@
       api_host: "{{ ansible_host }}"
       node: "kumo"
       hostname: builder
-      unprivileged: true
+      unprivileged: true # needs to be false on the actual containers
       password: "password123" # Should autogen and store this if I can
       ostemplate:  "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst" # should be a 
       disk: "local-lvm:8" # I should convert nvme_storage to support this
@@ -62,23 +62,31 @@
       node: "kumo"
     delegate_to: localhost
   
-  - name: Copy files to Proxmox host
+  - name: Copy setup kmsg script to Proxmox host
     ansible.builtin.copy:
-      src: "{{ playbook_dir }}/files/kubernetes/rc.local"
-      dest: /tmp/rc.local  # Destination directory on the Proxmox host
+      src: "{{ playbook_dir }}/files/kubernetes/conf-kmsg.sh"
+      dest: /tmp/conf-kmsg.sh  # Destination directory on the Proxmox host
 
-  - name: Copy files into LXC container
+  - name: Copy setup kmsg service to Proxmox host
+    ansible.builtin.copy:
+      src: "{{ playbook_dir }}/files/kubernetes/conf-kmsg.service"
+      dest: /tmp/conf-kmsg.service  # Destination directory on the Proxmox host
+
+  - name: Copy kmsg script into LXC container
     ansible.builtin.shell: |
-      pct push 9999 /tmp/rc.local /etc/rc.local
+      pct push 9999 /tmp/conf-kmsg.sh /usr/local/bin/conf-kmsg.sh
+
+  - name: Copy kmsg service into LXC container
+    ansible.builtin.shell: |
+      pct push 9999 /tmp/conf-kmsg.sh /usr/local/bin/conf-kmsg.sh
 
   - name: Execute commands inside LXC container
     ansible.builtin.shell: |
       lxc-attach -n 9999 -- /bin/bash -c '
         apt update && apt upgrade -y && apt install -y vim curl
-        chmod +x /etc/rc.local
-        sudo apt-get install haproxy keepalived -y
-        cat /etc/rancher/k3s/config.yaml
-        curl -sfL https://get.k3s.io | sh -
+        chmod +x /usr/local/bin/conf-kmsg.sh
+        systemctl daemon-reload
+        systemctl enable --now conf-kmsg
       '
 
 

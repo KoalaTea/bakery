@@ -1,0 +1,70 @@
+version: "3.8"
+services:
+  # aggregates the metrics
+  prometheus:
+    image: quay.io/prometheus/prometheus:v2.26.0
+    volumes:
+      - ./prometheus:/prometheus:rw
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command: "--config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus"
+    # ports: # helpful for debugging
+    #   - 9090:9090
+
+  # visualizes everything
+  grafana:
+    image: grafana/grafana
+    ports:
+      - 3340:3000
+    volumes:
+      - ./data:/var/lib/grafana:rw
+    # environment:
+    #   TZ: Europe/London
+    #   GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource,natel-discrete-panel,grafana-piechart-panel
+    depends_on:
+      - prometheus
+
+  # gives information on the cpu, ram, and temperatures
+  node-exporter:
+    privileged: true
+    image: prom/node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.ignored-mount-points"
+      - "^/(rootfs/)?(dev|etc|host|proc|run|sys|volume1)($$|/)"
+
+  # gives the majority of synology information like disks, system information, network interfaces, network?, raid...
+  snmp-exporter:
+    image: prom/snmp-exporter # user id 1026
+    restart: unless-stopped
+    volumes:
+      - ./snmp.yml:/etc/snmp_exporter/snmp.yml
+    command:
+      - "--config.file=/etc/snmp_exporter/snmp.yml"
+
+  # gives docker information
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    command:
+      - '--docker_only=true'
+    hostname: cadvisor
+    read_only: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  # gives network speed information
+  # speedtest-exporter:
+  #   image: ghcr.io/aaronmwelborn/speedtest_exporter:latest
+  #   networks:
+  #     - prometheus_net
+  #   read_only: true
+  #   user: user_id:group_id
+  #   restart: unless-stopped

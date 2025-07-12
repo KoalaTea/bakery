@@ -1,0 +1,19 @@
+# /var/lib/rancher/k3s/server/manifests/helm-controller.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nfs
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: nfs
+  namespace: nfs
+spec:
+  chart: nfs-subdir-external-provisioner
+  repo: https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner
+  targetNamespace: nfs
+  set:
+    nfs.server: x.x.x.x # IP of the NFS server or fqdn
+    nfs.path: /exported/path # path to the NFS share
+    storageClass.name: nfs

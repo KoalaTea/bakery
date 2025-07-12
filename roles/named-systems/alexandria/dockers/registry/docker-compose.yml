@@ -1,0 +1,11 @@
+version: '3'
+services:
+  homeassistant:
+    container_name: registry
+    image: "registry:latest"
+    volumes:
+      - ./config/config.yml:/etc/docker/registry/config.yml:ro
+      - ./data:/var/lib/registry:rw
+    restart: unless-stopped
+    ports:
+      - 5000:5050
