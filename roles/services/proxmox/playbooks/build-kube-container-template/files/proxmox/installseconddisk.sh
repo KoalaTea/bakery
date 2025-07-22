@@ -24,15 +24,14 @@ rm /etc/apt/sources.list.d/ceph.list
 /etc/apt/sources.list.d/non-enterprise.list
 deb http://download.proxmox.com/debian/ceph-quincy bookworm no-subscription
 deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription
-# Add the Osquery repository
-curl -L https://pkg.osquery.io/deb/osquery-apt.pub | apt-key add -
-echo "deb [arch=amd64] https://pkg.osquery.io/deb deb main" > /etc/apt/sources.list.d/osquery.list
-sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 97A80C63C9D8B80B
+apt install software-properties-common 
+
+# check osquery.io for the correct way again if this does not work
+export OSQUERY_KEY=1484120AC4E9F8A1A577AEEE97A80C63C9D8B80B
+apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys $OSQUERY_KEY
+add-apt-repository 'deb [arch=amd64] https://pkg.osquery.io/deb deb main'
+apt-get update
+apt-get install osquery
 
 # Update package lists
-apt update
 apt upgrade
-
-# Install Osquery
-apt install osquery
-# I think this needs to change somehow deprecation warnings

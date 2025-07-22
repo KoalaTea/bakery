@@ -39,6 +39,17 @@ scrape_configs:
     static_configs:
       - targets: ['speedtest-exporter:9877']
 
+  # scape tempo metrics
+  - job_name: 'tempo'
+    static_configs:
+      - targets: [ '192.168.1.45:3200' ]
+
+  # Scrape Loki metrics
+  - job_name: "loki"
+    metrics_path: "/metrics"  # Loki's metrics endpoint
+    static_configs:
+      - targets: ["192.168.1.45:3100"]  # Replace with your Loki's address and port
+
   # I seperate these for visibility in prometheus up down detectors of
   # scraping jobs
   - job_name: 'windows REMA windows exporter'

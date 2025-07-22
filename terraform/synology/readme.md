@@ -1,0 +1,1 @@
+SYNOLOGY_PASSWORD env for password

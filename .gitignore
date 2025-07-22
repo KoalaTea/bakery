@@ -13,3 +13,6 @@ venv
 output-*
 nixos-lxc-tarball
 *.ini
+.terraform*
+terraform.tfstate*
+.env

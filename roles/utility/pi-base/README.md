@@ -122,3 +122,15 @@ Extra
       "script": "./scripts/run.sh"
     }
 ```
+
+# telegraf
+the service file is in
+extractedtar/usr/lib/telegraf.service
+so we can probably just use that
+
+sudo useradd telegraf
+sudo usermod -G video telegraf 
+sudo mkdir /etc/telegraf
+sudo mkdir /etc/telegraf/telegraf.d
+sudo mv ./telegraf-1.35.2/usr/bin/telegraf /usr/bin/
+sudo mv ./telegraf-1.35.2/usr/lib/telegraf/scripts/telegraf.service /etc/systemd/system/

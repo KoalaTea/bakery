@@ -2,13 +2,13 @@ version: "3.8"
 services:
   # aggregates the metrics
   prometheus:
-    image: quay.io/prometheus/prometheus:v2.26.0
+    image: prom/prometheus:latest
     volumes:
       - ./prometheus:/prometheus:rw
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    command: "--config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus"
-    # ports: # helpful for debugging
-    #   - 9090:9090
+    command: "--config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --web.enable-remote-write-receiver --enable-feature=exemplar-storage --enable-feature=native-histograms"
+    ports: # helpful for debugging and external systems writing
+      - 9090:9090
 
   # visualizes everything
   grafana:

@@ -1,4 +1,13 @@
-## Specs for 
+# proxmox setup
+osquery
+
+# osquery fun/basics
+osqueryi
+select pid, name, user_time, system_time from processes where pid <> 0 limit 10;
+select pid, name, user_time + system_time AS proc_time from processes where pid <> 0 order by proc_time desc limit 10;
+select SUM(user_time) AS total_user_time, SUM(system_time) as total_sys_time from processes where pid <> 0;
+
+## Specs for Kune
 https://docs.k3s.io/installation/requirements?os=debian
 ### nodes
 Spec	Minimum	Recommended
@@ -53,6 +62,9 @@ https://www.jeffgeerling.com/blog/2022/quick-hello-world-http-deployment-testing
 Static IP
 Configured DNS ip address
 
+# CT template
+ubuntu-24.04-standard
+
 ## Setup for one server kube
 manual
 ### Proxmox setup
@@ -103,3 +115,7 @@ From my side I use Calico with IP in IP overlay.
 # some utility commands for kubernetes
 kubectl get storageclasses
 kubectl exec --stdin --tty <pod name> -- /bin/bash
+
+# proxmox metrics
+influxdb
+http

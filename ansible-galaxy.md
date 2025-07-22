@@ -1,0 +1,1 @@
+ansible-galaxy role install agaffney.synology_dsm

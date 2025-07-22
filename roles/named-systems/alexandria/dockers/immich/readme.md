@@ -1,0 +1,3 @@
+# required dirs
+postgres
+library
