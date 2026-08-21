@@ -1,0 +1,164 @@
+---
+# cleanup enterprise apts
+# add no subscription apt
+# remove nag
+# what does that script do again?
+
+# get osquery
+- name: add osquery apy-key
+  apt_key:
+    url: https://pkg.osquery.io/deb/pubkey.gpg
+    state: present
+
+- name: Set the osquery apt repository
+  apt_repository:
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/osquery.asc] https://pkg.osquery.io/deb deb main"
+    state: present
+    update_cache: yes
+
+- name: install osquery
+  package:
+    name: osquery
+    state: present
+
+# setup monitoring lxc
+- name: Download the required lxc template
+  community.general.proxmox_template:
+    state: present
+    api_user: "{{ api_username }}"
+    api_password: "{{ ansible_ssh_pass }}"
+    api_host: "{{ ansible_host }}"
+    node: "{{ nodename }}"
+    storage: "local"
+    content_type: vztmpl
+    template: ubuntu-24.04-standard_24.04-2_amd64.tar.zst
+    timeout: 30
+  delegate_to: localhost
+  register: template_info
+
+- name: Deploy new Telegraf lxc CT
+  community.general.proxmox:
+    node: "{{ nodename }}" # probably a variable somewhere
+    hostname: telegraf
+    api_user: "{{ api_username }}"
+    api_password: "{{ ansible_ssh_pass }}"
+    api_host: "{{ ansible_host }}"
+    unprivileged: true
+    password: "{{ template_root_password }}"
+    ostemplate: "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst"
+    # netif: '{"net0": "bridge=vmbr0,name=eth0,firewall=yes,ip=dhcp,ip6=dhcp"}'
+    netif:
+      net0: "bridge=vmbr0,name=eth0,firewall=yes,ip=dhcp,ip6=dhcp"
+    cores: 1
+    memory: 256
+    swap: 256
+    vmid: 150
+    storage: local-lvm
+    onboot: true
+    state: present
+
+- name: Start Telegraf lxc CT
+  community.general.proxmox:
+    node: "{{ nodename }}" # probably a variable somewhere
+    api_user: "{{ api_username }}"
+    api_password: "{{ ansible_ssh_pass }}"
+    api_host: "{{ ansible_host }}"
+    vmid: 150
+    state: started
+  register: ct_started
+
+- name: Give telegraf lxc time to finish
+  pause:
+    seconds: 5
+  when: ct_started.changed
+
+# the pipe lines dont work
+- name: Setup monitoring LXC in one shot
+  shell: |
+    pct exec 150 -- sh -eux <<'EOF'
+      apt-get update -y
+      apt-get upgrade -y
+      apt-get install -y lm-sensors wget gpg
+
+      wget -q https://repos.influxdata.com/influxdata-archive_compat.key
+
+      echo '393e8779c89ac8d958f81f942f9ad7fb82a25e133faddaf92e15b16e6ac9ce4c  influxdata-archive_compat.key' \
+        | sha256sum -c
+
+      cat influxdata-archive_compat.key \
+        | gpg --dearmor \
+        | tee /etc/apt/trusted.gpg.d/influxdata-archive_compat.gpg > /dev/null
+
+      echo 'deb [signed-by=/etc/apt/trusted.gpg.d/influxdata-archive_compat.gpg] https://repos.influxdata.com/debian stable main' \
+        | tee /etc/apt/sources.list.d/influxdata.list
+
+      apt-get update -y
+      apt-get install -y telegraf
+    EOF
+  changed_when: true
+
+- name: config folder
+  file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - "lxc"
+    - "lxc/monitoring"
+
+# probably TODO template
+- name: Deploy Telegraf config with templated influxdb settings
+  template:
+    src: ../files/telegraf.j2.conf
+    dest: lxc/monitoring/telegraf.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: move telegraf.conf into monitoring lxc
+  command: "pct push 150 lxc/monitoring/telegraf.conf /etc/telegraf/telegraf.conf"
+  changed_when: true
+
+- name: Re/Start telegraf service
+  command: "pct exec 150 -- {{ item }}"
+  changed_when: true
+  with_items:
+    - "systemctl stop telegraf"
+    - "systemctl enable telegraf"
+    - "systemctl start telegraf"
+
+# # this would all be in a lxc container. In the current moment
+# # get requiements for monitoring
+# - name: install monitoring requirements
+#   package:
+#     name: "{{ item }}"
+#     state: present
+#   with_items:
+#     - lm-sensors
+
+# # setup telegraf
+# - name: add telegraf apy-key
+#   apt_key:
+#     url: https://repos.influxdata.com/influxdata-archive.key
+#     state: present
+
+# - name: Set the telegraf apt repository
+#   apt_repository:
+#     repo: "deb [signed-by=/etc/apt/trusted.gpg.d/influxdata-archive.gpg] https://repos.influxdata.com/debian stable main"
+#     state: present
+#     update_cache: yes
+
+# - name: install telegraf
+#   package:
+#     name: telegraf
+#     state: present
+
+# - name: telegraf file
+#   copy:
+#     src: telegraf.conf
+#     dest: /etc/telegraf/telegraf.conf
+#     mode: 0600
+
+# - name: telegraf service started and enabled
+#   systemd_service:
+#     state: started
+#     enabled: true

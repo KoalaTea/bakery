@@ -1,0 +1,159 @@
+---
+- name: Download the required template
+  community.general.proxmox_template:
+    state: present
+    api_user: "{{ api_username }}"
+    api_password: "{{ ansible_ssh_pass }}"
+    api_host: "{{ ansible_host }}"
+    node: "{{ nodename }}"
+    storage: "local"
+    content_type: vztmpl
+    template: ubuntu-24.04-standard_24.04-2_amd64.tar.zst
+    timeout: 30
+  delegate_to: localhost
+  register: template_info
+
+- name: Check template_info content
+  debug:
+    var: template_info
+
+- name: Disable swap
+  command: "{{ item }}"
+  changed_when: true
+  with_items:
+    - "sysctl vm.swappiness=0"
+    - "swapoff -a"
+
+- name: add forwarding to sysctl.conf
+  lineinfile:
+    path: "/etc/sysctl.conf"
+    line: "net.ipv4.ip_forward=1"
+
+- name: config folder
+  file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - "lxc"
+    - "lxc/kubernetes"
+
+- copy: 
+    src: "../files/kubernetes"
+    dest: "lxc"
+
+- name: Deploy new kube controller lxc CT
+  community.general.proxmox:
+    node: "{{ nodename }}" # probably a variable somewhere
+    hostname: kube-controller1
+    api_user: "{{ api_username }}"
+    api_password: "{{ ansible_ssh_pass }}"
+    api_host: "{{ ansible_host }}"
+    unprivileged: false
+    password: "{{ template_root_password }}"
+    ostemplate: "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst"
+    netif:
+      net0: "bridge=vmbr0,name=eth0,firewall=yes,gw=192.168.1.1,ip=192.168.1.180/24,ip6=dhcp" # static ip
+    cores: 1
+    memory: 4096
+    swap: 0
+    vmid: 100
+    disk_volume:
+      storage: local-lvm
+      size: 16
+    onboot: true
+    state: present
+
+- name: Deploy new  kube worker lxc CT
+  community.general.proxmox:
+    node: "{{ nodename }}" # probably a variable somewhere
+    hostname: kube-worker1
+    api_user: "{{ api_username }}"
+    api_password: "{{ ansible_ssh_pass }}"
+    api_host: "{{ ansible_host }}"
+    unprivileged: false
+    password: "{{ template_root_password }}"
+    ostemplate: "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst"
+    netif:
+      net0: "bridge=vmbr0,name=eth0,firewall=yes,gw=192.168.1.1,ip=192.168.1.181/24,ip6=dhcp" # static IP
+    cores: 1
+    memory: 4096
+    swap: 0
+    vmid: 101
+    disk_volume:
+      storage: local-lvm
+      size: 16
+    onboot: true
+    state: present
+
+- name: add lxc configuration to conf file
+  blockinfile:
+    path: "/etc/pve/lxc/{{ item }}.conf"
+    block: "{{ lookup('template', '../files/kubernetes/lxc_config_additions.txt') }}"
+    state: present
+  with_items:
+    - "100"
+    - "101"
+
+- name: Start kube lxc CTs
+  community.general.proxmox:
+    node: "{{ nodename }}" # probably a variable somewhere
+    api_user: "{{ api_username }}"
+    api_password: "{{ ansible_ssh_pass }}"
+    api_host: "{{ ansible_host }}"
+    vmid: "{{ item }}"
+    state: started
+  with_items:
+    - "100"
+    - "101"
+  register: ct_started
+
+- name: Give kube lxcs time to finish
+  pause:
+    seconds: 5
+  when: ct_started.changed
+
+# the pipe lines dont work
+- name: Setup kube containers
+  shell: |
+    pct exec {{ item }} -- sh -eux <<'EOF'
+      apt-get update -y
+      apt-get install curl -y
+    EOF
+    pct push {{ item }} /boot/config-$(uname -r) /boot/config-$(uname -r)
+    pct push {{ item }} lxc/kubernetes/conf-kmsg.sh /usr/local/bin/conf-kmsg.sh
+    pct push {{ item }} lxc/kubernetes/conf-kmsg.service /etc/systemd/system/conf-kmsg.service
+    pct push {{ item }} lxc/kubernetes/turn-on-kmsg.sh /root/turn-on-kmsg.sh
+    pct exec {{ item }} -- bash /root/turn-on-kmsg.sh
+  with_items:
+    - "100"
+    - "101"
+  changed_when: true
+
+# the pipe lines dont work
+- name: Setup kube controller in one shot
+  shell: |
+    pct exec 100 -- sh -eux <<'EOF'
+      curl -fsL https://get.k3s.io | sh -s - --disable traefik --node-name kube-controller1
+    EOF
+  changed_when: true
+
+- name: get kube controller files
+  shell: |
+    pct pull 100 /etc/rancher/k3s/k3s.yaml ./lxc/kubernetes/k3s.yaml
+    pct pull 100 /var/lib/rancher/k3s/server/node-token ./lxc/kubernetes/node-token
+  changed_when: true
+
+- name: fix k3s.yaml ip
+  replace:
+    path: "./lxc/kubernetes/k3s.yaml"
+    regexp: '\b127\.0\.0\.1\b'
+    replace: '192.168.1.180'
+
+# the pipe lines dont work
+- name: Setup kube worker in one shot
+  shell: |
+    pct push 101 lxc/kubernetes/node-token /root/node-token
+    pct exec 101 -- sh -eux <<'EOF'
+      curl -fsL https://get.k3s.io | sh -s - agent --node-name kube-worker1 --server https://192.168.1.180:6443 --token $(cat /root/node-token)
+    EOF
+  changed_when: true

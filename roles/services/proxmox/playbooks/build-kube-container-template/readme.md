@@ -41,7 +41,7 @@ XX-Large	500+	16	64 GB
 1 Server
 3 Agents
 
-## Setting up server
+## Setting up controller server
 curl -sfL https://get.k3s.io | sh -
 K3S_TOKEN in /var/lib/rancher/k3s/server/node-token
 kubeconfig at /etc/rancher/k3s/k3s.yaml
@@ -76,25 +76,40 @@ sysctl --system
 ### PRE KUBE INSTALL ALL NODES
 1. Create the CT - uncheck unprivileged container
 2. Edit /etc/pve/lxc/\<containerid\>.conf - add lxc_config_additions.txt to the end of it
-3. pct push \<containerid\> /boot/config-$(uname -r) /boot/config-$(uname -r)
-4. start container
+3. start container
+4. pct push \<containerid\> /boot/config-$(uname -r) /boot/config-$(uname -r)
 5. Add /usr/local/bin/conf-kmsg.sh
 6. Add /etc/systemd/system/conf-kmsg.service
 7. run turn-on-kmsg.sh
 ### First Controller node
 1. After PRE KUBE INSTALL ALL NODES steps
 2. curl -fsL https://get.k3s.io | sh -s - --disable traefik --node-name \<hostname\>
-3. get the /etc/rancher/k3s/k3s.yaml for kubectl config for clients
+3. get the /etc/rancher/k3s/k3s.yaml for kubectl config for clients (seems to sometimes have 127.0.0.1?)
 4. get the /var/lib/rancher/k3s/server/node-token for worker node install
 ### Worker node
 1. After PRE KUBE INSTALL ALL NODES steps
 2. After First Controller node node-token is acquired
-3. curl -fsL https://get.k3s.io | K3S_URL=https://\<control node ip\>:6443 K3S_TOKEN=\<node-token\> sh -s - --node-name worker-1.k8s
+3. curl -fsL https://get.k3s.io | sh -s - agent --node-name \<node-name\> --server https://\<control node ip\>:6443 --token \<node-token\>
+
 ### setup networking - done from a client with the k3s.yaml
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
 helm install nginx-ingress ingress-nginx/ingress-nginx --set controller.publishService.enabled=true
 
+
+# We are here for the ansible
+# pulling the k3s.yaml is currently 127.0.0.1 instead of ip so others cannot use it should generate a new one or template after pull
+### setup monitoring
+
+# potential commands
+pct exec 100 -- bash
+pct exec 100 -- echo "hello from container"
+pct exec 100 -- ls /etc
+
+pct pull 100 /etc/rancher/k3s/k3s.yaml ./kubenodesetup/k3s.yaml
+pct pull 100 /var/lib/rancher/k3s/server/node-token ./kubenodesetup/node-token
+
+pct start <CTID>
 
 ##### Potential stuff for kubernetes
 Well written, in addition make sure the following kernel modules are loaded from Proxmox Hosts :
@@ -119,3 +134,18 @@ kubectl exec --stdin --tty <pod name> -- /bin/bash
 # proxmox metrics
 influxdb
 http
+
+# passthrough
+## enable iommu allowing passthrough for lxc containers
+https://pve.proxmox.com/wiki/PCI_Passthrough
+iommu
+> nano /etc/default/grub
+GRUB_CMDLINE_LINUX_DEFAULT="quiet" -> add "intel_iommu=on" or "amd_iommu" -> GRUB_CMDLINE_LINUX_DEFAULT="quiet intel_iommu=on"
+> update-grub
+> update-initramfs -u
+reboot system (can do in ui)
+## verify
+dmesg | grep -e DMAR -e IOMMU
+if you see things its probably fine, lookout for error or unknown then reference wiki
+dmesg | grep 'remapping'
+looking for Enabled ... remapping ...

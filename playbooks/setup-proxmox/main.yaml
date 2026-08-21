@@ -1,0 +1,14 @@
+---
+- hosts: proxmox
+  # roles:
+  #   - services/proxmox
+  tasks:
+    - name: Ensure Proxmox is set up
+      # include_role:
+      #   name: services/proxmox
+      # tasks_from: setup_proxmox
+      # tags: setup_proxmox
+      include_tasks: ../../roles/services/proxmox/tasks/setup_proxmox.yaml
+    
+    - name: setup for kube
+      include_tasks: ../../roles/services/proxmox/tasks/setup_kube.yaml
